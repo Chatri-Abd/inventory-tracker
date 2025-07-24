@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📤 Bulk Upload Items</h2>
+    <p style="color: #666; margin-bottom: 25px;">Upload a CSV file to add multiple items at once. Each item will automatically get a unique ID and QR code.</p>
+    
+    <!-- Upload Form -->
+    <form method="POST" enctype="multipart/form-data" style="margin-bottom: 30px;">
+        <div class="form-group">
+            <label for="file">Choose CSV File</label>
+            <input type="file" id="file" name="file" accept=".csv" required style="padding: 15px; border: 2px dashed #ddd; background: #f8f9fa;">
+            <small style="color: #666; display: block; margin-top: 5px;">Maximum file size: 16MB</small>
+        </div>
+        
+        <div style="text-align: center;">
+            <button type="submit" class="btn">📤 Upload CSV</button>
+            <a href="/" class="btn" style="background: #6c757d;">❌ Cancel</a>
+        </div>
+    </form>
+    
+    <!-- Template Download -->
+    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+        <h3 style="margin-bottom: 15px;">📋 Need a Template?</h3>
+        <p style="margin-bottom: 15px;">Download our CSV template with sample data to get started quickly.</p>
+        <a href="/download_template" class="btn" download>⬇️ Download Template</a>
+    </div>
+</div>
+
+<!-- CSV Format Guide -->
+<div class="card">
+    <h3>📝 CSV Format Guide</h3>
+    
+    <div style="margin-bottom: 25px;">
+        <h4 style="color: #333; margin-bottom: 10px;">Required Column:</h4>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                <strong>name</strong> - Item name (required)
+            </li>
+        </ul>
+    </div>
+    
+    <div style="margin-bottom: 25px;">
+        <h4 style="color: #333; margin-bottom: 10px;">Optional Columns:</h4>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                <strong>description</strong> - Item description
+            </li>
+            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                <strong>category</strong> - Item category (Tools, Electronics, etc.)
+            </li>
+            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                <strong>location</strong> - Where the item is stored
+            </li>
+            <li style="padding: 8px 0;">
+                <strong>quantity</strong> - Number of items (defaults to 1)
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Example CSV -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h4 style="margin-bottom: 15px;">Example CSV Content:</h4>
+        <pre style="background: white; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: monospace; font-size: 12px;">name,description,category,location,quantity
+Screwdriver Set,Phillips and flathead screwdrivers,Tools,Garage,1
+Laptop Charger,Dell 65W USB-C charger,Electronics,Office,2
+First Aid Kit,Emergency medical supplies,Safety,Car,1
+Bluetooth Speaker,Portable wireless speaker,Electronics,Home,1</pre>
+    </div>
+    
+    <!-- Tips -->
+    <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 20px; border-radius: 10px;">
+        <h4 style="margin-bottom: 15px;">💡 Tips for Success:</h4>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 5px 0;">✅ Use UTF-8 encoding for special characters</li>
+            <li style="padding: 5px 0;">✅ Each item will get a unique 8-character ID automatically</li>
+            <li style="padding: 5px 0;">✅ QR codes are generated automatically for each item</li>
+            <li style="padding: 5px 0;">✅ Empty cells in optional columns are okay</li>
+            <li style="padding: 5px 0;">✅ Quantity defaults to 1 if not specified or invalid</li>
+            <li style="padding: 5px 0;">⚠️ Duplicate names are allowed (they'll have different IDs)</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Export Current Inventory -->
+<div class="card">
+    <h3>📊 Export Current Inventory</h3>
+    <p style="margin-bottom: 20px;">Download your current inventory as a CSV file for backup or analysis.</p>
+    <a href="/export_inventory" class="btn" download>⬇️ Export Inventory</a>
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="/" class="btn">🔙 Back to Dashboard</a>
+</div>
+
+<style>
+input[type="file"] {
+    width: 100%;
+    padding: 20px;
+    border: 2px dashed #ddd;
+    border-radius: 10px;
+    background: #f8f9fa;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+input[type="file"]:hover {
+    border-color: #667eea;
+    background: #f0f8ff;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}

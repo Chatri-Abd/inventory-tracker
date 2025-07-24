@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>➕ Add New Item</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Item Name *</label>
+            <input type="text" id="name" name="name" required placeholder="Enter item name">
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="3" placeholder="Optional description"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label for="category">Category</label>
+                <input type="text" id="category" name="category" placeholder="e.g., Tools, Electronics" list="categories">
+                <datalist id="categories">
+                    <option value="Tools">
+                    <option value="Electronics">
+                    <option value="Office Supplies">
+                    <option value="Household">
+                    <option value="Automotive">
+                    <option value="Sports">
+                    <option value="Books">
+                    <option value="Clothing">
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="location" placeholder="e.g., Home, Car, Office" list="locations">
+                <datalist id="locations">
+                    <option value="Home">
+                    <option value="Car">
+                    <option value="Office">
+                    <option value="Garage">
+                    <option value="Basement">
+                    <option value="Storage">
+                    <option value="Workshop">
+                </datalist>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="quantity">Quantity</label>
+            <input type="number" id="quantity" name="quantity" value="1" min="1">
+        </div>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
+            <button type="submit" class="btn">✅ Add Item</button>
+            <a href="/" class="btn" style="background: #6c757d;">❌ Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h3>💡 Tips</h3>
+    <ul style="list-style: none; padding: 0;">
+        <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+            <strong>📱 QR Code:</strong> Each item gets a unique QR code for easy tracking
+        </li>
+        <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+            <strong>📍 Location:</strong> Use consistent location names (Home, Car, Office, etc.)
+        </li>
+        <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+            <strong>🏷️ Categories:</strong> Group similar items for better organization
+        </li>
+        <li style="padding: 10px 0;">
+            <strong>🔢 Quantity:</strong> Track multiple quantities of the same item
+        </li>
+    </ul>
+</div>
+{% endblock %}

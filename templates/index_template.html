@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🏠 Your Inventory</h2>
+    
+    <!-- Search and Filter -->
+    <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
+        <input type="text" id="searchInput" placeholder="🔍 Search items..." style="flex: 1; min-width: 200px;">
+        
+        <select id="locationFilter">
+            <option value="">📍 All Locations</option>
+            {% for location in locations %}
+                <option value="{{ location }}">{{ location }}</option>
+            {% endfor %}
+        </select>
+        
+        <select id="categoryFilter">
+            <option value="">🏷️ All Categories</option>
+            {% for category in categories %}
+                <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <!-- Items Grid -->
+    <div class="grid" id="itemsGrid">
+        {% for item in items %}
+        <div class="item-card" data-name="{{ item[1]|lower }}" data-location="{{ item[4] or '' }}" data-category="{{ item[3] or '' }}">
+            <h3>{{ item[1] }}</h3>
+            
+            <div class="item-meta">
+                {% if item[2] %}
+                    <p><strong>Description:</strong> {{ item[2] }}</p>
+                {% endif %}
+                
+                {% if item[3] %}
+                    <p><strong>Category:</strong> 🏷️ {{ item[3] }}</p>
+                {% endif %}
+                
+                {% if item[4] %}
+                    <p><strong>Location:</strong> 📍 {{ item[4] }}</p>
+                {% endif %}
+                
+                <p><strong>Added:</strong> {{ item[6][:10] }}</p>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                <span class="quantity-badge">Qty: {{ item[5] }}</span>
+                <div>
+                    <a href="/item/{{ item[0] }}" class="btn" style="font-size: 12px;">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if not items %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <h3>📦 No items yet!</h3>
+        <p>Start by adding your first item to the inventory.</p>
+        <a href="/add_item" class="btn" style="margin-top: 20px;">➕ Add First Item</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.form-group input, .form-group select {
+    padding: 8px 12px;
+    border: 2px solid #e1e8ed;
+    border-radius: 8px;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Search and filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const locationFilter = document.getElementById('locationFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const itemCards = document.querySelectorAll('.item-card');
+    
+    function filterItems() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedLocation = locationFilter.value;
+        const selectedCategory = categoryFilter.value;
+        
+        itemCards.forEach(card => {
+            const name = card.dataset.name;
+            const location = card.dataset.location;
+            const category = card.dataset.category;
+            
+            const matchesSearch = name.includes(searchTerm);
+            const matchesLocation = !selectedLocation || location === selectedLocation;
+            const matchesCategory = !selectedCategory || category === selectedCategory;
+            
+            if (matchesSearch && matchesLocation && matchesCategory) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+    
+    searchInput.addEventListener('input', filterItems);
+    locationFilter.addEventListener('change', filterItems);
+    categoryFilter.addEventListener('change', filterItems);
+});
+</script>
+{% endblock %}
