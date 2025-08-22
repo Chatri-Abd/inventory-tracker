@@ -30,7 +30,7 @@
         
         <div style="display: flex; gap: 10px; align-items: end;">
             <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                <input type="text" id="manual-id" placeholder="Enter 8-character item ID" style="text-transform: uppercase;">
+                <input type="text" id="manual-id" placeholder="Enter item ID (e.g., P0000123)" style="text-transform: uppercase;">
             </div>
             <button id="lookup-item" class="btn">🔍 Lookup</button>
         </div>
@@ -76,7 +76,7 @@
         <div style="background: rgba(255,255,255,0.5); padding: 20px; border-radius: 10px;">
             <h4>✏️ Manual Lookup</h4>
             <ol style="padding-left: 20px;">
-                <li>Find the 8-character ID on item</li>
+                <li>Find the item ID (P0000123 format)</li>
                 <li>Type it in the input field</li>
                 <li>Click "Lookup"</li>
                 <li>View item details</li>
@@ -148,10 +148,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Manual lookup
     lookupBtn.addEventListener('click', function() {
         const itemId = manualId.value.trim().toUpperCase();
-        if (itemId.length === 8) {
+        if (itemId.match(/^P\d{7}$/)) {  // Check P + 7 digits format
             lookupItem(itemId);
         } else {
-            showError('Please enter a valid 8-character item ID');
+            showError('Please enter a valid item ID (format: P0000123)');
         }
     });
     
