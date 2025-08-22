@@ -47,9 +47,37 @@ def init_db():
         )
     ''')
     
+    # Counter table for sequential IDs
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS id_counter (
+            counter INTEGER DEFAULT 0
+        )
+    ''')
+    
+    # Initialize counter if empty
+    cursor.execute('SELECT COUNT(*) FROM id_counter')
+    if cursor.fetchone()[0] == 0:
+        cursor.execute('INSERT INTO id_counter (counter) VALUES (0)')
+    
     conn.commit()
     conn.close()
 
+def generate_item_id():
+    """Generate sequential ID in format P0000001, P0000002, etc."""
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # Get and increment counter
+    cursor.execute('SELECT counter FROM id_counter')
+    current_counter = cursor.fetchone()[0]
+    new_counter = current_counter + 1
+    
+    cursor.execute('UPDATE id_counter SET counter = ?', (new_counter,))
+    conn.commit()
+    conn.close()
+    
+    # Format as P + 7 digits with leading zeros
+    return f"P{new_counter:07d}"
 def generate_qr_code(item_id):
     """Generate QR code for item ID"""
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -91,7 +119,7 @@ def index():
 @app.route('/add_item', methods=['GET', 'POST'])
 def add_item():
     if request.method == 'POST':
-        item_id = str(uuid.uuid4())[:8]  # Short unique ID
+        item_id = generate_item_id()  # Generate sequential ID
         name = request.form['name']
         description = request.form.get('description', '')
         category = request.form.get('category', '')
@@ -244,7 +272,7 @@ def bulk_upload():
                             quantity = 1
                         
                         # Generate unique ID and QR code
-                        item_id = str(uuid.uuid4())[:8]
+                        item_id = generate_item_id()  # Use sequential ID generator
                         qr_code = generate_qr_code(item_id)
                         
                         # Insert item
