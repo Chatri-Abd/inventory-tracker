@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📱 QR Code Scanner</h2>
+    <p style="color: #666; margin-bottom: 25px;">Scan item QR codes to quickly view details and check items in/out.</p>
+    
+    <!-- Scanner Area -->
+    <div id="scanner-container" style="text-align: center; margin: 20px 0;">
+        <div id="scanner-area" style="max-width: 500px; margin: 0 auto; background: #f8f9fa; border: 2px dashed #ddd; border-radius: 10px; padding: 40px;">
+            <div id="camera-placeholder">
+                <h3 style="color: #666;">📷 Camera Scanner</h3>
+                <p style="color: #999; margin: 20px 0;">Click "Start Scanner" to use your device camera</p>
+                <button id="start-scanner" class="btn">📱 Start Scanner</button>
+            </div>
+            
+            <video id="scanner-video" style="width: 100%; max-width: 400px; border-radius: 8px; display: none;"></video>
+            <canvas id="scanner-canvas" style="display: none;"></canvas>
+        </div>
+        
+        <div id="scanner-controls" style="margin: 20px 0; display: none;">
+            <button id="stop-scanner" class="btn btn-danger">⏹️ Stop Scanner</button>
+        </div>
+    </div>
+    
+    <!-- Manual ID Input -->
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 25px; border-radius: 10px; margin: 20px 0;">
+        <h3>✏️ Manual Item Lookup</h3>
+        <p style="color: #666; margin-bottom: 15px;">Don't have a camera? Enter the item ID manually.</p>
+        
+        <div style="display: flex; gap: 10px; align-items: end;">
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <input type="text" id="manual-id" placeholder="Enter 8-character item ID" style="text-transform: uppercase;">
+            </div>
+            <button id="lookup-item" class="btn">🔍 Lookup</button>
+        </div>
+    </div>
+    
+    <!-- Scan Results -->
+    <div id="scan-results" style="display: none; margin-top: 25px;">
+        <div class="card" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+            <h3>✅ Item Found!</h3>
+            <div id="item-info"></div>
+            <div style="margin-top: 20px;">
+                <button id="view-item" class="btn">👁️ View Details</button>
+                <button id="quick-checkin" class="btn btn-success">📥 Quick Check In</button>
+                <button id="quick-checkout" class="btn btn-danger">📤 Quick Check Out</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="error-message" style="display: none; margin-top: 25px;">
+        <div class="card" style="background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);">
+            <h3>❌ Error</h3>
+            <p id="error-text"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions -->
+<div class="card">
+    <h3>📖 How to Use</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div style="background: rgba(255,255,255,0.5); padding: 20px; border-radius: 10px;">
+            <h4>📱 Camera Scanning</h4>
+            <ol style="padding-left: 20px;">
+                <li>Click "Start Scanner"</li>
+                <li>Allow camera access</li>
+                <li>Point camera at QR code</li>
+                <li>Item details appear automatically</li>
+            </ol>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.5); padding: 20px; border-radius: 10px;">
+            <h4>✏️ Manual Lookup</h4>
+            <ol style="padding-left: 20px;">
+                <li>Find the 8-character ID on item</li>
+                <li>Type it in the input field</li>
+                <li>Click "Lookup"</li>
+                <li>View item details</li>
+            </ol>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.5); padding: 20px; border-radius: 10px;">
+            <h4>⚡ Quick Actions</h4>
+            <ul style="padding-left: 20px;">
+                <li>Quick Check In (+1)</li>
+                <li>Quick Check Out (-1)</li>
+                <li>View full item details</li>
+                <li>See transaction history</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="/" class="btn">🔙 Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// QR Scanner functionality
+let scanner = null;
+let currentStream = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('start-scanner');
+    const stopBtn = document.getElementById('stop-scanner');
+    const video = document.getElementById('scanner-video');
+    const canvas = document.getElementById('scanner-canvas');
+    const placeholder = document.getElementById('camera-placeholder');
+    const controls = document.getElementById('scanner-controls');
+    const lookupBtn = document.getElementById('lookup-item');
+    const manualId = document.getElementById('manual-id');
+    
+    // Start camera scanner
+    startBtn.addEventListener('click', async function() {
+        try {
+            currentStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment' // Use back camera if available
+                } 
+            });
+            
+            video.srcObject = currentStream;
+            video.play();
+            
+            placeholder.style.display = 'none';
+            video.style.display = 'block';
+            controls.style.display = 'block';
+            
+            // Start QR detection (simplified - in real app you'd use a QR library)
+            startQRDetection();
+            
+        } catch (error) {
+            showError('Camera access denied or not available. Please use manual lookup.');
+        }
+    });
+    
+    // Stop scanner
+    stopBtn.addEventListener('click', function() {
+        stopScanner();
+    });
+    
+    // Manual lookup
+    lookupBtn.addEventListener('click', function() {
+        const itemId = manualId.value.trim().toUpperCase();
+        if (itemId.length === 8) {
+            lookupItem(itemId);
+        } else {
+            showError('Please enter a valid 8-character item ID');
+        }
+    });
+    
+    // Enter key for manual lookup
+    manualId.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            lookupBtn.click();
+        }
+    });
+    
+    function startQRDetection() {
+        // Simplified QR detection - in a real app, you'd use a library like jsQR
+        // For now, we'll simulate with a timeout
+        setTimeout(() => {
+            // Simulate finding a QR code (you'd replace this with actual QR detection)
+            // This is just for demo - real implementation would use jsQR or similar
+            showError('QR detection requires additional libraries. Please use manual lookup for now.');
+        }, 2000);
+    }
+    
+    function stopScanner() {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        
+        video.style.display = 'none';
+        placeholder.style.display = 'block';
+        controls.style.display = 'none';
+        hideResults();
+    }
+    
+    function lookupItem(itemId) {
+        // Clear previous results
+        hideResults();
+        
+        // Fetch item info
+        fetch(`/api/item/${itemId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(`Item not found: ${itemId}`);
+                } else {
+                    showItem(data);
+                }
+            })
+            .catch(error => {
+                showError('Error looking up item. Please try again.');
+            });
+    }
+    
+    function showItem(item) {
+        const resultsDiv = document.getElementById('scan-results');
+        const itemInfo = document.getElementById('item-info');
+        
+        itemInfo.innerHTML = `
+            <h4>${item.name}</h4>
+            <p><strong>ID:</strong> ${item.id}</p>
+            ${item.description ? `<p><strong>Description:</strong> ${item.description}</p>` : ''}
+            ${item.category ? `<p><strong>Category:</strong> 🏷️ ${item.category}</p>` : ''}
+            ${item.location ? `<p><strong>Location:</strong> 📍 ${item.location}</p>` : ''}
+            <p><strong>Quantity:</strong> <span class="quantity-badge">${item.quantity}</span></p>
+        `;
+        
+        // Set up action buttons
+        document.getElementById('view-item').onclick = () => {
+            window.location.href = `/item/${item.id}`;
+        };
+        
+        document.getElementById('quick-checkin').onclick = () => {
+            quickAction(item.id, 'check_in');
+        };
+        
+        document.getElementById('quick-checkout').onclick = () => {
+            quickAction(item.id, 'check_out');
+        };
+        
+        resultsDiv.style.display = 'block';
+        document.getElementById('error-message').style.display = 'none';
+    }
+    
+    function quickAction(itemId, action) {
+        const formData = new FormData();
+        formData.append('action', action);
+        formData.append('quantity', '1');
+        formData.append('notes', `Quick ${action.replace('_', ' ')} via scanner`);
+        
+        fetch(`/check_in_out/${itemId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Refresh item data
+                lookupItem(itemId);
+            } else {
+                showError('Error updating item quantity');
+            }
+        })
+        .catch(error => {
+            showError('Error performing action. Please try again.');
+        });
+    }
+    
+    function showError(message) {
+        document.getElementById('error-text').textContent = message;
+        document.getElementById('error-message').style.display = 'block';
+        document.getElementById('scan-results').style.display = 'none';
+    }
+    
+    function hideResults() {
+        document.getElementById('scan-results').style.display = 'none';
+        document.getElementById('error-message').style.display = 'none';
+    }
+});
+</script>
+{% endblock %}
