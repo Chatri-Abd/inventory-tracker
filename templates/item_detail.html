@@ -15,6 +15,24 @@
         </div>
     </div>
     
+    <!-- Print and Delete Actions -->
+    <div class="action-buttons" style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px;">
+        <h4 style="margin-bottom: 15px;">🖨️ Print Options</h4>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <a href="/print/qr_only/{{ item[0] }}" target="_blank" class="btn" style="background: #007bff; text-decoration: none;">
+                📄 Print QR Only
+            </a>
+            <a href="/print/qr_with_info/{{ item[0] }}" target="_blank" class="btn" style="background: #28a745; text-decoration: none;">
+                📋 Print QR + Info
+            </a>
+        </div>
+        
+        <h4 style="margin-bottom: 15px; color: #dc3545;">🗑️ Delete Item</h4>
+        <button onclick="confirmDelete('{{ item[0] }}', '{{ item[1] }}')" class="btn" style="background: #dc3545;">
+            🗑️ Delete Item
+        </button>
+    </div>
+    
     <!-- Item Details -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
         <div class="info-box">
@@ -120,12 +138,31 @@
     <a href="/" class="btn">🔙 Back to Dashboard</a>
 </div>
 
+<!-- Delete Confirmation Form (hidden) -->
+<form id="deleteForm" method="POST" style="display: none;">
+</form>
+
 <style>
 .info-box {
     background: rgba(255,255,255,0.5);
     padding: 20px;
     border-radius: 10px;
     border: 1px solid #e1e8ed;
+}
+
+.action-buttons .btn {
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.action-buttons .btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
 }
 
 .transaction-list {
@@ -184,6 +221,16 @@
 }
 
 @media (max-width: 768px) {
+    .action-buttons {
+        text-align: center;
+    }
+    
+    .action-buttons .btn {
+        display: block;
+        margin: 5px auto;
+        width: 200px;
+    }
+    
     .transaction-header {
         flex-direction: column;
         align-items: flex-start;
@@ -200,6 +247,15 @@
 
 {% block scripts %}
 <script>
+// Delete confirmation function
+function confirmDelete(itemId, itemName) {
+    if (confirm(`Are you sure you want to delete "${itemName}"?\n\nThis will permanently remove the item and all its transaction history. This action cannot be undone.`)) {
+        const form = document.getElementById('deleteForm');
+        form.action = `/delete_item/${itemId}`;
+        form.submit();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('checkInOutForm');
     
@@ -224,6 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 successMsg.className = 'flash';
                 successMsg.style.background = '#d4edda';
                 successMsg.style.color = '#155724';
+                successMsg.style.padding = '10px';
+                successMsg.style.borderRadius = '5px';
+                successMsg.style.marginBottom = '15px';
                 successMsg.textContent = 'Item updated successfully!';
                 
                 form.parentNode.insertBefore(successMsg, form);
