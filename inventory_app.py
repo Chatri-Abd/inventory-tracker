@@ -527,3 +527,290 @@ def print_item(print_type, item_id):
     else:
         flash('Invalid print type')
         return redirect(url_for('item_detail', item_id=item_id))
+
+# ==============================================
+# DATABASE BACKUP SOLUTION
+# ==============================================
+
+import shutil
+import zipfile
+from datetime import datetime
+import os
+
+@app.route('/backup_database')
+def backup_database():
+    """Create and download database backup"""
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f'inventory_backup_{timestamp}.zip'
+        
+        # Create temporary backup directory
+        backup_dir = 'temp_backup'
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Copy database file
+        if os.path.exists('inventory.db'):
+            shutil.copy2('inventory.db', os.path.join(backup_dir, 'inventory.db'))
+        
+        # Export data to CSV as well
+        conn = sqlite3.connect('inventory.db')
+        cursor = conn.cursor()
+        
+        # Export items
+        cursor.execute('SELECT * FROM items ORDER BY date_added')
+        items = cursor.fetchall()
+        
+        # Export transactions
+        cursor.execute('SELECT * FROM transactions ORDER BY timestamp')
+        transactions = cursor.fetchall()
+        
+        conn.close()
+        
+        # Write items CSV
+        with open(os.path.join(backup_dir, 'items_backup.csv'), 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'name', 'description', 'category', 'location', 'quantity', 'date_added', 'last_updated', 'qr_code'])
+            writer.writerows(items)
+        
+        # Write transactions CSV
+        with open(os.path.join(backup_dir, 'transactions_backup.csv'), 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'item_id', 'action', 'quantity', 'timestamp', 'location', 'notes'])
+            writer.writerows(transactions)
+        
+        # Create README file
+        readme_content = f"""INVENTORY DATABASE BACKUP
+Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+FILES INCLUDED:
+- inventory.db: SQLite database file (can be used to restore full database)
+- items_backup.csv: All inventory items in CSV format
+- transactions_backup.csv: All transaction history in CSV format
+
+RESTORE INSTRUCTIONS:
+1. Replace your current inventory.db with the backed up inventory.db file
+2. Or use the CSV files to import data into a new database
+
+BACKUP STATISTICS:
+- Total Items: {len(items)}
+- Total Transactions: {len(transactions)}
+"""
+        
+        with open(os.path.join(backup_dir, 'README.txt'), 'w') as f:
+            f.write(readme_content)
+        
+        # Create ZIP file
+        zip_path = os.path.join('temp', backup_filename)
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(backup_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, backup_dir)
+                    zipf.write(file_path, arcname)
+        
+        # Clean up temporary directory
+        shutil.rmtree(backup_dir)
+        
+        # Send file
+        def remove_file(response):
+            try:
+                os.remove(zip_path)
+            except Exception:
+                pass
+            return response
+        
+        return send_from_directory('temp', backup_filename, as_attachment=True)
+        
+    except Exception as e:
+        flash(f'Error creating backup: {str(e)}')
+        return redirect(url_for('index'))
+
+@app.route('/restore_database', methods=['GET', 'POST'])
+def restore_database():
+    """Restore database from backup file"""
+    if request.method == 'POST':
+        if 'backup_file' not in request.files:
+            flash('No file selected')
+            return redirect(request.url)
+        
+        file = request.files['backup_file']
+        if file.filename == '':
+            flash('No file selected')
+            return redirect(request.url)
+        
+        if file and file.filename.lower().endswith('.zip'):
+            try:
+                # Create temporary directory for extraction
+                extract_dir = 'temp_restore'
+                if os.path.exists(extract_dir):
+                    shutil.rmtree(extract_dir)
+                os.makedirs(extract_dir)
+                
+                # Save uploaded file
+                zip_path = os.path.join(extract_dir, 'backup.zip')
+                file.save(zip_path)
+                
+                # Extract ZIP file
+                with zipfile.ZipFile(zip_path, 'r') as zipf:
+                    zipf.extractall(extract_dir)
+                
+                # Check if database file exists in backup
+                db_backup_path = os.path.join(extract_dir, 'inventory.db')
+                if os.path.exists(db_backup_path):
+                    # Backup current database
+                    if os.path.exists('inventory.db'):
+                        backup_current = f'inventory_backup_before_restore_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+                        shutil.copy2('inventory.db', backup_current)
+                        flash(f'Current database backed up as: {backup_current}')
+                    
+                    # Restore database
+                    shutil.copy2(db_backup_path, 'inventory.db')
+                    flash('Database restored successfully!')
+                else:
+                    flash('No database file found in backup')
+                
+                # Clean up
+                shutil.rmtree(extract_dir)
+                
+                return redirect(url_for('index'))
+                
+            except Exception as e:
+                flash(f'Error restoring database: {str(e)}')
+                if os.path.exists('temp_restore'):
+                    shutil.rmtree('temp_restore')
+                return redirect(request.url)
+        else:
+            flash('Please upload a ZIP file')
+            return redirect(request.url)
+    
+    return render_template('restore_database.html')
+
+@app.route('/database_info')
+def database_info():
+    """Show database statistics and information"""
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # Get database statistics
+    cursor.execute('SELECT COUNT(*) FROM items')
+    total_items = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM transactions')
+    total_transactions = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT SUM(quantity) FROM items')
+    total_quantity = cursor.fetchone()[0] or 0
+    
+    cursor.execute('SELECT COUNT(DISTINCT location) FROM items WHERE location IS NOT NULL')
+    unique_locations = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(DISTINCT category) FROM items WHERE category IS NOT NULL')
+    unique_categories = cursor.fetchone()[0]
+    
+    # Get database file size
+    db_size = os.path.getsize('inventory.db') if os.path.exists('inventory.db') else 0
+    db_size_mb = round(db_size / (1024 * 1024), 2)
+    
+    # Get recent activity
+    cursor.execute('''
+        SELECT i.name, t.action, t.quantity, t.timestamp 
+        FROM transactions t 
+        JOIN items i ON t.item_id = i.id 
+        ORDER BY t.timestamp DESC 
+        LIMIT 10
+    ''')
+    recent_activity = cursor.fetchall()
+    
+    conn.close()
+    
+    stats = {
+        'total_items': total_items,
+        'total_transactions': total_transactions,
+        'total_quantity': total_quantity,
+        'unique_locations': unique_locations,
+        'unique_categories': unique_categories,
+        'db_size_mb': db_size_mb,
+        'recent_activity': recent_activity
+    }
+    
+    return render_template('database_info.html', stats=stats)
+
+# ==============================================
+# SCHEDULED BACKUP (Optional - for automatic backups)
+# ==============================================
+
+def create_automated_backup():
+    """Create automated backup - can be called by a scheduler"""
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_dir = 'automated_backups'
+        
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Keep only last 30 backups
+        existing_backups = [f for f in os.listdir(backup_dir) if f.startswith('auto_backup_')]
+        existing_backups.sort(reverse=True)
+        
+        # Remove old backups (keep last 30)
+        for old_backup in existing_backups[30:]:
+            try:
+                os.remove(os.path.join(backup_dir, old_backup))
+            except:
+                pass
+        
+        # Create new backup
+        backup_filename = f'auto_backup_{timestamp}.db'
+        shutil.copy2('inventory.db', os.path.join(backup_dir, backup_filename))
+        
+        return True
+    except Exception as e:
+        print(f"Automated backup failed: {e}")
+        return False
+
+# ==============================================
+# DATABASE STORAGE RECOMMENDATIONS
+# ==============================================
+
+"""
+CURRENT SETUP (SQLite) - PERFECT FOR YOUR USE CASE:
+
+✅ ADVANTAGES:
+- Single file storage (inventory.db)
+- No server setup required
+- Fast for personal use
+- Easy backup (just copy the .db file)
+- Supports up to 281TB database size
+- ACID compliant (reliable)
+- Works offline
+
+📁 BACKUP STRATEGY:
+1. Manual backups via /backup_database route
+2. File system backups (copy inventory.db)
+3. CSV exports for data portability
+4. Automated daily backups (optional)
+
+🔄 MIGRATION OPTIONS (if needed later):
+- SQLite → MySQL: Use sqlite3 and mysql connectors
+- SQLite → PostgreSQL: Use pgloader or custom scripts
+- SQLite → Cloud: Export to CSV then import
+
+💾 STORAGE LOCATIONS:
+- Local: Current setup (inventory.db file)
+- Cloud backup: Upload .db file to Google Drive/Dropbox
+- Version control: Git repository with database
+- Network: Shared folder for multi-device access
+
+🚀 SCALING OPTIONS:
+- Current: SQLite (perfect for 1-100,000 items)
+- Medium scale: MySQL/PostgreSQL (100,000+ items)
+- Large scale: Cloud databases (millions of items)
+
+RECOMMENDATION: 
+Keep SQLite! It's perfect for personal inventory tracking.
+Add regular backups using the backup routes above.
+"""
