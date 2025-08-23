@@ -431,3 +431,99 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
+# ==============================================
+# 1. FLASK BACKEND UPDATES 
+# ==============================================
+
+#  route for DELETE functionality
+@app.route('/delete_item/<item_id>', methods=['POST'])
+def delete_item(item_id):
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # Check if item exists
+    cursor.execute('SELECT name FROM items WHERE id = ?', (item_id,))
+    item = cursor.fetchone()
+    
+    if not item:
+        flash('Item not found')
+        return redirect(url_for('index'))
+    
+    try:
+        # Delete from transactions first (foreign key constraint)
+        cursor.execute('DELETE FROM transactions WHERE item_id = ?', (item_id,))
+        
+        # Delete the item
+        cursor.execute('DELETE FROM items WHERE id = ?', (item_id,))
+        
+        conn.commit()
+        flash(f'Item "{item[0]}" deleted successfully!')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting item: {str(e)}')
+    
+    finally:
+        conn.close()
+    
+    return redirect(url_for('index'))
+
+# route for SEARCH functionality (fix the existing search)
+@app.route('/api/search')
+def api_search():
+    query = request.args.get('q', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Query parameter required'}), 400
+    
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # Search by exact ID or partial name/description match
+    cursor.execute('''
+        SELECT id, name, description, category, location, quantity, qr_code
+        FROM items 
+        WHERE id = ? OR name LIKE ? OR description LIKE ?
+        ORDER BY 
+            CASE WHEN id = ? THEN 0 ELSE 1 END,
+            name
+    ''', (query, f'%{query}%', f'%{query}%', query))
+    
+    items = cursor.fetchall()
+    conn.close()
+    
+    results = []
+    for item in items:
+        results.append({
+            'id': item[0],
+            'name': item[1],
+            'description': item[2] or '',
+            'category': item[3] or '',
+            'location': item[4] or '',
+            'quantity': item[5],
+            'qr_code': item[6] or ''
+        })
+    
+    return jsonify(results)
+
+# route for PRINT functionality
+@app.route('/print/<print_type>/<item_id>')
+def print_item(print_type, item_id):
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM items WHERE id = ?', (item_id,))
+    item = cursor.fetchone()
+    conn.close()
+    
+    if not item:
+        flash('Item not found')
+        return redirect(url_for('index'))
+    
+    if print_type == 'qr_only':
+        return render_template('print_qr_only.html', item=item)
+    elif print_type == 'qr_with_info':
+        return render_template('print_qr_with_info.html', item=item)
+    else:
+        flash('Invalid print type')
+        return redirect(url_for('item_detail', item_id=item_id))
